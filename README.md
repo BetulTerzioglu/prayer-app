@@ -23,7 +23,7 @@ The following diagram illustrates the multimodal pipeline and how our AI core (G
 ```mermaid
 graph TD
     A[User Input: Emotions/Thoughts] --> B[Streamlit Frontend]
-    B --> C{AI Core: Gemini / Ollama}
+    B --> C{AI Core: Gemini}
     
     subgraph "Backend Processing"
     C --> D[Deep Emotional Analysis]
