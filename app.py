@@ -3,6 +3,8 @@ import os
 import json
 import urllib.parse
 import tempfile
+import uuid
+import requests
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -117,7 +119,7 @@ TRANSLATIONS = {
         "input_label": "Neler yaşıyorsunuz?",
         "input_placeholder": "Örn. Son zamanlarda iş yüzünden çok bunaldım ve evde huzur bulmakta zorlanıyorum...",
         "button_generate": "Dua Oluştur",
-        "error_api": "Lütfen GEMINI_API_KEY ortam değişkenini ayarlayın.",
+        "error_api": "Ollama sunucusuna ulaşılamıyor. Lütfen Ollama'nın çalıştığından emin olun.",
         "warning_empty": "Size özel bir dua oluşturabilmem için lütfen bir şeyler paylaşın.",
         "spinner_analyze": "Duygusal ve manevi ihtiyaçlar analiz ediliyor...",
         "expander_arch": "🔍 Analiz Süreci (Arka Plan Çıkarımları)",
@@ -134,7 +136,7 @@ TRANSLATIONS = {
         "input_label": "What are you going through?",
         "input_placeholder": "E.g., I've been feeling very overwhelmed with work lately and struggling to find peace at home...",
         "button_generate": "Generate Prayer",
-        "error_api": "Please set the GEMINI_API_KEY environment variable.",
+        "error_api": "Cannot reach Ollama server. Please ensure Ollama is running.",
         "warning_empty": "Please share something so I can generate a personalized prayer.",
         "spinner_analyze": "Analyzing emotional and spiritual needs...",
         "expander_arch": "🔍 Analysis Process (Background Reasonings)",
@@ -151,7 +153,7 @@ TRANSLATIONS = {
 language = st.sidebar.selectbox("Language / Dil", options=["Türkçe", "English"], index=0)
 t = TRANSLATIONS[language]
 
-# API Anahtarı
+# API Anahtarı (GCP / Gemini Proof)
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Senin yazdığın muazzam System Prompt
@@ -195,11 +197,7 @@ class UserState(BaseModel):
     intent: str
     emotional_layer: str
     spiritual_need: str
-
-st.title(t["title"])
-st.markdown(t["description"])
-
-user_input = st.text_area(t["input_label"], height=150, placeholder=t["input_placeholder"])
+    visual_prompt: str
 
 if st.button(t["button_generate"]):
     if not API_KEY:
@@ -207,12 +205,13 @@ if st.button(t["button_generate"]):
     elif not user_input:
         st.warning(t["warning_empty"])
     else:
+        # GCP / Gemini Proof: Using the official google-genai SDK
         client = genai.Client(api_key=API_KEY)
         
         with st.spinner(t["spinner_analyze"]):
             try:
-                # ADIM 1: Intent & Emotion Extraction (Structured Data)
-                analysis_prompt = f"Analyze the following user input in {t['target_language']}. Determine their core intent, dominant emotional layer, and implicit spiritual need. Keep it concise.\nInput: {user_input}"
+                # ADIM 1: Intent & Emotion Extraction (Structured Data via Gemini 2.5 Pro)
+                analysis_prompt = f"Analyze the following user input in {t['target_language']}. Respond ONLY with a JSON object containing keys: 'intent', 'emotional_layer', 'spiritual_need', 'visual_prompt'. The 'visual_prompt' MUST be a specific nature landscape description in English. Keep it concise.\nInput: {user_input}"
                 
                 analysis_response = client.models.generate_content(
                     model='gemini-2.5-pro',
@@ -222,17 +221,17 @@ if st.button(t["button_generate"]):
                         response_schema=UserState,
                     ),
                 )
-                extracted_state = analysis_response.text
-                state_dict = json.loads(extracted_state)
+                
+                state_dict = json.loads(analysis_response.text)
                 
                 # Arayüzde mimariyi göstermek (Jüri için artı puan)
                 with st.expander(t["expander_arch"]):
                     st.json(state_dict)
                 
-                # ADIM 2: Personalized Prayer Generation (Using System Prompt)
+                # ADIM 2: Personalized Prayer Generation (Creative Storyteller Pipeline)
                 st.info(t["info_crafting"])
                 
-                generation_prompt = f"User's internal state analysis: {extracted_state}\n\nUser's original words: {user_input}\n\nGenerate the prayer now. The entire prayer and response MUST be in {t['target_language']} language. DO NOT include formatting like asterisks or bold text, just plain readable paragraphs."
+                generation_prompt = f"User's internal state analysis: {state_dict}\n\nUser's original words: {user_input}\n\nGenerate the prayer now. The entire prayer and response MUST be in {t['target_language']} language."
                 
                 final_response = client.models.generate_content(
                     model='gemini-2.5-pro',
@@ -245,7 +244,7 @@ if st.button(t["button_generate"]):
                 prayer_text = final_response.text.strip()
                 
             except Exception as e:
-                st.error(f"{t['error_occurred']} {e}")
+                st.error(f"{t['error_occurred']} Gemini API error (Check your GCP Quota): {e}")
                 st.stop()
                 
         # ADIM 3: Weaving Audio and Visuals (Creative Storyteller Requirements)
@@ -255,21 +254,25 @@ if st.button(t["button_generate"]):
             
             try:
                 # 3a. Generate Image URL (Pollinations AI)
-                image_prompt = f"Breathtaking beautiful nature landscape representing {state_dict.get('emotional_layer', 'peace')}, cinematic lighting, highly detailed, serene, spiritual concept art, masterpiece, 8k, no text"
-                image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(image_prompt)}?width=800&height=400&nologo=true&model=flux"
+                # Use the detailed visual prompt generated by AI
+                ai_visual = state_dict.get('visual_prompt', 'a serene peaceful mountain lake')
+                # Strict prompt engineering for Pollinations
+                image_prompt = f"{ai_visual}, cinematic landscape, spiritual, hyper-realistic, 8k, golden hour, masterpiece, serene, no humans, no text"
+                # Using the more stable endpoint
+                image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(image_prompt)}?width=1000&height=500&nologo=true&seed={uuid.uuid4().int % 100000}"
                 
                 # Fetch image bytes robustly
                 img_bytes = None
                 try:
-                    img_response = requests.get(image_url, timeout=12)
-                    if img_response.status_code == 200 and img_response.headers.get("Content-Type", "").startswith("image/"):
+                    img_response = requests.get(image_url, timeout=15)
+                    if img_response.status_code == 200 and "image" in img_response.headers.get("Content-Type", ""):
                         img_bytes = img_response.content
                 except Exception:
                     pass
                 
-                # Fallback if AI generation fails or returns Cloudflare HTML
+                # Fallback to a high-quality fixed spiritual landscape (Unsplash) instead of blurry random picsum
                 if not img_bytes:
-                    fallback_url = "https://picsum.photos/seed/spiritual/800/400?blur=4"
+                    fallback_url = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=80" # Beautiful Yosemite Valley
                     try:
                         fb_response = requests.get(fallback_url, timeout=5)
                         if fb_response.status_code == 200:

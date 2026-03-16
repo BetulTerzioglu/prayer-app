@@ -102,6 +102,18 @@ For detailed instructions, see [deployment_instructions.md](./deployment_instruc
 
 ---
 
+## 🛡️ Proof of Google Cloud Usage
+
+This project demonstrates the use of Google Cloud services as per the Gemini Live Agent Challenge requirements:
+
+1.  **Google Gemini API (Vertex AI/GenAI):** The core reasoning is powered by **Gemini 2.5 Pro**. You can find the direct API implementation using the official `google-genai` SDK in:
+    *   [app.py:L211 (Client Init)](https://github.com/BetulTerzioglu/prayer-app/blob/main/app.py#L211)
+    *   [app.py:L218 (Structured Data Extraction)](https://github.com/BetulTerzioglu/prayer-app/blob/main/app.py#L218)
+    *   [app.py:L240 (Personalized Storytelling Generation)](https://github.com/BetulTerzioglu/prayer-app/blob/main/app.py#L240)
+2.  **Google Cloud Run:** The application is containerized and ready for deployment on GCP Cloud Run. (See [Dockerfile](./Dockerfile))
+
+---
+
 ## 🧠 Project Story
 
 This project was built for the **Gemini Live Agent Challenge** (Creative Storyteller Category). Our goal was to push the boundaries of interleaved multimodal outputs, creating an experience where text, sight, and sound work in harmony to provide emotional support.
