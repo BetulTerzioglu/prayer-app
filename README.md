@@ -16,6 +16,35 @@
 
 ---
 
+## 🏛️ System Architecture
+
+The following diagram illustrates the multimodal pipeline and how our AI core (Gemini/Ollama) orchestrates the spiritual experience:
+
+```mermaid
+graph TD
+    A[User Input: Emotions/Thoughts] --> B[Streamlit Frontend]
+    B --> C{AI Core: Gemini / Ollama}
+    
+    subgraph "Backend Processing"
+    C --> D[Deep Emotional Analysis]
+    D --> E[JSON Structured Data]
+    E --> F[Personalized Prayer Text]
+    E --> G[Visual Prompt Engineering]
+    end
+    
+    subgraph "Multimodal Generation"
+    F --> H[gTTS: Audio Narration]
+    G --> I[Pollinations AI: Cinematic Art]
+    end
+    
+    H --> J[Interleaved UI Output]
+    I --> J
+    F --> J
+    J --> B
+```
+
+---
+
 ## 🛠️ Technology Stack
 
 *   **Brain:** [Google Gemini API](https://ai.google.dev/) (Gemini 2.5 Pro & 2.0 Flash)
